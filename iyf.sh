@@ -25,9 +25,11 @@ __iyf_format_duration() {
   if (( seconds < 60 )); then
     printf "%.1fs" $seconds
   elif (( seconds < 3600 )); then
-    printf "%dm %ds" $(( seconds / 60 )) $(( (int)seconds % 60 ))
+    local s=${seconds%%.*}
+    printf "%dm %ds" $(( s / 60 )) $(( s % 60 ))
   else
-    printf "%dh %dm" $(( seconds / 3600 )) $(( ((int)seconds % 3600) / 60 ))
+    local s=${seconds%%.*}
+    printf "%dh %dm" $(( s / 3600 )) $(( (s % 3600) / 60 ))
   fi
 }
 
