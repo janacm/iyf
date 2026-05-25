@@ -74,7 +74,7 @@ import urllib.parse, sys
 print(urllib.parse.quote(sys.stdin.read().strip()))
 " <<< "$cmd" 2>/dev/null || echo "$cmd")
 
-  local url="file://${IYF_ALERT_FILE}?cmd=${encoded_cmd}&duration=${formatted}&code=${code}"
+  local url="file://${IYF_ALERT_FILE}?cmd=${encoded_cmd}&duration=${formatted}&code=${code}&autoclose=${IYF_AUTO_CLOSE}"
 
   if [[ -d "/Applications/Google Chrome.app" ]]; then
     __iyf_close_alerts "Google Chrome"

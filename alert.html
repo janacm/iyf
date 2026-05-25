@@ -243,13 +243,15 @@
     if (e.key === 'Escape') dismiss();
   });
 
-  let remaining = 90;
+  let remaining = parseInt(params.get('autoclose'), 10);
+  if (!Number.isFinite(remaining) || remaining <= 0) remaining = 90;
+  const total = remaining;
   const progressBar = document.getElementById('progressBar');
 
   function tick() {
     remaining--;
     if (remaining <= 0) { dismiss(); return; }
-    progressBar.style.width = (remaining / 90 * 100) + '%';
+    progressBar.style.width = (remaining / total * 100) + '%';
     setTimeout(tick, 1000);
   }
 
