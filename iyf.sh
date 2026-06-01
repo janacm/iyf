@@ -18,6 +18,10 @@ export IYF_SKIP_WHEN_ACTIVE=${IYF_SKIP_WHEN_ACTIVE:-""}
 
 zmodload zsh/datetime 2>/dev/null
 
+# Directory this file lives in, captured at source time, so we can find the
+# sibling iyf-show-alert.sh launcher regardless of cwd.
+typeset -g _IYF_DIR="${${(%):-%x}:A:h}"
+
 __iyf_is_ignored() {
   local cmd="${1%% *}"
   cmd="${cmd##*/}"
@@ -88,45 +92,10 @@ __iyf_precmd() {
   __iyf_cmd=
 }
 
-__iyf_close_alerts() {
-  local app=$1
-  case "$app" in
-    *Chrome*|*Brave*|*Edge*)
-      osascript -e "tell app \"$app\" to close (every window whose name contains \"Command Finished\")" 2>/dev/null
-      ;;
-    *Safari*)
-      osascript -e "tell app \"Safari\" to close (every tab of every window whose name contains \"Command Finished\")" 2>/dev/null
-      ;;
-  esac
-}
-
 __iyf_show_alert() {
   local cmd=$1 duration=$2 code=$3
   local formatted=$(__iyf_format_duration $duration)
-
-  local encoded_cmd
-  encoded_cmd=$(python3 -c "
-import urllib.parse, sys
-print(urllib.parse.quote(sys.stdin.read().strip()))
-" <<< "$cmd" 2>/dev/null || echo "$cmd")
-
-  local url="file://${IYF_ALERT_FILE}?cmd=${encoded_cmd}&duration=${formatted}&code=${code}&autoclose=${IYF_AUTO_CLOSE}"
-
-  if [[ -d "/Applications/Google Chrome.app" ]]; then
-    __iyf_close_alerts "Google Chrome"
-    open -n -a "Google Chrome" --args --start-fullscreen --app="$url" &>/dev/null &
-  elif [[ -d "/Applications/Brave Browser.app" ]]; then
-    __iyf_close_alerts "Brave Browser"
-    open -n -a "Brave Browser" --args --start-fullscreen --app="$url" &>/dev/null &
-  elif [[ -d "/Applications/Microsoft Edge.app" ]]; then
-    __iyf_close_alerts "Microsoft Edge"
-    open -n -a "Microsoft Edge" --args --start-fullscreen --app="$url" &>/dev/null &
-  else
-    open -a Safari "$url" &>/dev/null &
-    osascript -e 'delay 0.5' -e 'tell application "Safari" to activate' \
-      -e 'tell application "System Events" to tell process "Safari" to keystroke "f" using {command down, control down}' \
-      &>/dev/null &
-  fi
+  "$_IYF_DIR/iyf-show-alert.sh" "$cmd" "$formatted" "$code"
 }
 
 # Manual trigger for testing: iyf any command here
