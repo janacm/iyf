@@ -55,6 +55,7 @@ All settings are environment variables. Set them before `iyf.sh` is sourced
 | `IYF_ALERT_FILE` | `~/.iyf/alert.html` | Path to the alert HTML page. |
 | `IYF_SKIP_OWN_TERMINAL` | `1` | When `1`, suppress the alert if the terminal that ran the command is the frontmost app when it finishes. Set to `0` to always alert. |
 | `IYF_SKIP_WHEN_ACTIVE` | _(empty)_ | Space-separated apps to also stay silent for when they're frontmost. Each entry matches a frontmost app's bundle id exactly, or its name as a substring. |
+| `IYF_CLAUDE_THRESHOLD` | `45` | Minimum Claude Code *turn* duration, in seconds, to trigger an alert. Only used by the [Claude Code integration](#claude-code). |
 
 The default ignore list covers common interactive / long-lived foreground tools:
 
@@ -99,6 +100,46 @@ slow command:
 ```sh
 iyf make build      # shows the alert immediately for "make build"
 ```
+
+## Claude Code
+
+The same alert works for [Claude Code](https://claude.com/claude-code): when a
+long Claude *turn* finishes — you asked it to do something big and switched away
+— it yanks you back the moment it's done, showing your prompt and how long the
+turn took.
+
+It reuses the same launcher (`iyf-show-alert.sh`), the same `alert.html`, and
+the same "stay silent while you're at the terminal" logic as the shell hook.
+No zsh sourcing required — it's driven by two Claude Code hooks pointing at
+`iyf-claude-hook.sh`:
+
+- `UserPromptSubmit` records when the turn started (and your prompt text).
+- `Stop` measures how long the turn took and fires the alert if it ran longer
+  than `IYF_CLAUDE_THRESHOLD` seconds (default `45`) and you're not already
+  looking at the terminal Claude is running in.
+
+Add this to `~/.claude/settings.json` (merge into any existing `hooks`), pointing
+at wherever you cloned the repo:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "/path/to/iyf/iyf-claude-hook.sh", "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "/path/to/iyf/iyf-claude-hook.sh", "timeout": 10, "async": true } ] }
+    ]
+  }
+}
+```
+
+Tune the trigger independently of the terminal threshold with
+`IYF_CLAUDE_THRESHOLD`. The own-terminal / `IYF_SKIP_WHEN_ACTIVE` silencing
+rules apply here too, so an alert only pops when you've actually walked away.
+
+> Requires `python3` (used to parse the hook payload). Subagent turns don't
+> fire it — only the main agent's `Stop`.
 
 ## Dismissing the alert
 
