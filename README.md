@@ -188,10 +188,17 @@ Install it as a background **launchd LaunchAgent** so it runs across logins —
 install-once, like sourcing `iyf.sh`:
 
 ```sh
-~/.iyf/iyf-paseo-watch.sh install     # write + load the LaunchAgent
+~/.iyf/iyf-paseo-watch.sh install     # stage runtime + load the LaunchAgent
 ~/.iyf/iyf-paseo-watch.sh status      # check it's running / tail its log
 ~/.iyf/iyf-paseo-watch.sh uninstall   # unload + remove it
 ```
+
+`install` copies the few files it needs into `~/.local/share/iyf` and points the
+LaunchAgent there. This matters: a launchd job runs **without your Full Disk
+Access**, so it can't execute scripts from TCC-protected folders like
+`~/Documents` — and `~/.iyf` is often a symlink into exactly that. Running from a
+staged, non-TCC copy sidesteps the `Operation not permitted` failure entirely.
+Override the location with `IYF_PASEO_INSTALL_DIR`.
 
 Or run it in the foreground to try it out (Ctrl-C to stop), and fire a one-off
 sample alert to confirm the visuals:
@@ -208,11 +215,12 @@ app is frontmost — you're already watching — which you can change or disable
 `IYF_PASEO_SKIP_WHEN_ACTIVE`.
 
 Because the LaunchAgent doesn't inherit your interactive shell environment, set
-its knobs in an env file (default `~/.iyf/paseo-watch.env`, overridable with
-`IYF_PASEO_ENV`), which the watcher sources on startup:
+its knobs in an env file next to the staged runtime
+(`~/.local/share/iyf/paseo-watch.env`, overridable with `IYF_PASEO_ENV`), which
+the watcher sources on startup:
 
 ```sh
-# ~/.iyf/paseo-watch.env
+# ~/.local/share/iyf/paseo-watch.env
 IYF_PASEO_THRESHOLD=60
 IYF_PASEO_EVENTS="finish permission"
 ```

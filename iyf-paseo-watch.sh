@@ -51,9 +51,11 @@
 #                              (default "sh.paseo.desktop"; set "" to disable)
 #   IYF_SKIP_WHEN_ACTIVE       extra frontmost apps to stay silent for (shared)
 #   IYF_PASEO_ENV              optional env file sourced at startup
-#                              (default ~/.iyf/paseo-watch.env) — handy for
-#                              configuring the launchd daemon without editing
-#                              the plist
+#                              (default: paseo-watch.env next to this script) —
+#                              handy for configuring the launchd daemon
+#   IYF_PASEO_INSTALL_DIR      where `install` stages the runtime so the
+#                              LaunchAgent can run it without Full Disk Access
+#                              (default ~/.local/share/iyf; see `install`)
 #   IYF_ALERT_FILE             alert.html path     (default: alongside this script)
 #   IYF_AUTO_CLOSE             auto-dismiss seconds (default 90, via launcher)
 #   IYF_SNOOZE_MINUTES         snooze options       (default "5 10 30 60", via launcher)
@@ -63,7 +65,7 @@ set -u
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # --- optional env file (lets the launchd daemon be configured out-of-band) ---
-env_file=${IYF_PASEO_ENV:-$HOME/.iyf/paseo-watch.env}
+env_file=${IYF_PASEO_ENV:-$dir/paseo-watch.env}
 if [[ -f "$env_file" ]]; then
   set -a; # shellcheck disable=SC1090
   . "$env_file"; set +a
@@ -79,6 +81,8 @@ fi
 label_prefix="com.iyf.paseo-watch"
 plist="$HOME/Library/LaunchAgents/${label_prefix}.plist"
 logfile="${TMPDIR:-/tmp}/iyf-paseo-watch.log"
+# `install` stages the runtime here — a non-TCC location launchd can read.
+install_dir="${IYF_PASEO_INSTALL_DIR:-$HOME/.local/share/iyf}"
 
 # --- locate the paseo CLI (PATH, then the usual symlink, then the app bundle) ---
 __iyf_find_paseo() {
@@ -127,8 +131,28 @@ iyf_run() {
 # install / uninstall / status — launchd LaunchAgent management
 # -------------------------------------------------------------
 iyf_install() {
-  local script="$dir/iyf-paseo-watch.sh"
-  mkdir -p "$HOME/Library/LaunchAgents"
+  # Stage the runtime into a non-TCC location. A LaunchAgent runs WITHOUT your
+  # Full Disk Access grants, so it cannot exec scripts from TCC-protected folders
+  # — ~/Documents, ~/Desktop, ~/Downloads, or a symlink into them (note ~/.iyf is
+  # often a symlink to ~/Documents/GitHub/iyf). launchd would fail with
+  # "Operation not permitted" (exit 126). Copying the handful of files it needs
+  # into ~/.local/share/iyf sidesteps that for good.
+  mkdir -p "$install_dir" "$HOME/Library/LaunchAgents"
+  local f
+  for f in iyf-paseo-watch.sh iyf-paseo-watch.py iyf-show-alert.sh \
+           iyf-snooze-daemon.py alert.html; do
+    if [[ -f "$dir/$f" ]] && ! [[ "$dir/$f" -ef "$install_dir/$f" ]]; then
+      cp "$dir/$f" "$install_dir/$f"
+    fi
+  done
+  chmod +x "$install_dir/iyf-paseo-watch.sh" "$install_dir/iyf-paseo-watch.py" \
+           "$install_dir/iyf-show-alert.sh" 2>/dev/null
+  local script="$install_dir/iyf-paseo-watch.sh"
+  if [[ ! -f "$install_dir/iyf-paseo-watch.py" || ! -f "$install_dir/iyf-show-alert.sh" ]]; then
+    echo "iyf-paseo-watch: couldn't stage the runtime into $install_dir" >&2
+    echo "  (run install from a full iyf checkout)" >&2
+    return 1
+  fi
   # Bake in a PATH that finds paseo (~/.local/bin) plus python3/lsappinfo,
   # because launchd jobs don't inherit your interactive shell PATH.
   cat > "$plist" <<PLIST
@@ -166,8 +190,9 @@ PLIST
   launchctl unload "$plist" >/dev/null 2>&1
   if launchctl load -w "$plist" 2>/dev/null; then
     echo "Installed and loaded: $plist"
+    echo "  runtime staged in: $install_dir"
     echo "  watching the Paseo daemon; logs -> $logfile"
-    echo "  configure via env file: ${env_file}"
+    echo "  configure via env file: $install_dir/paseo-watch.env"
     echo "  uninstall with: $script uninstall"
   else
     echo "Wrote $plist but 'launchctl load' failed — try: launchctl load -w \"$plist\"" >&2
@@ -188,6 +213,7 @@ iyf_status() {
     echo "LaunchAgent: not loaded"
   fi
   [[ -f "$plist" ]] && echo "plist: $plist" || echo "plist: (none)"
+  echo "install dir: $install_dir"
   if [[ -f "$logfile" ]]; then
     echo "--- last 10 log lines ($logfile) ---"
     tail -n 10 "$logfile" 2>/dev/null
