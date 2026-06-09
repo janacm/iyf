@@ -69,6 +69,10 @@ All settings are environment variables. Set them before `iyf.sh` is sourced
 | `IYF_SKIP_OWN_TERMINAL` | `1` | When `1`, suppress the alert if the terminal that ran the command is the frontmost app when it finishes. Set to `0` to always alert. |
 | `IYF_SKIP_WHEN_ACTIVE` | _(empty)_ | Space-separated apps to also stay silent for when they're frontmost. Each entry matches a frontmost app's bundle id exactly, or its name as a substring. |
 | `IYF_CLAUDE_THRESHOLD` | `45` | Minimum Claude Code *turn* duration, in seconds, to trigger an alert. Only used by the [Claude Code integration](#claude-code). |
+| `IYF_PASEO_THRESHOLD` | `45` | Minimum Paseo agent *turn* duration, in seconds, to trigger a finished-turn alert. Only used by the [Paseo integration](#paseo). |
+| `IYF_PASEO_POLL` | `3` | How often, in seconds, the Paseo watcher polls the daemon for agent status changes. Only used by the [Paseo integration](#paseo). |
+| `IYF_PASEO_EVENTS` | `finish error permission` | Which Paseo agent events fire an alert — any subset of `finish` (turn done), `error` (turn failed), `permission` (agent is blocked waiting on you). Only used by the [Paseo integration](#paseo). |
+| `IYF_PASEO_SKIP_WHEN_ACTIVE` | `sh.paseo.desktop` | Like `IYF_SKIP_WHEN_ACTIVE`, but for the Paseo watcher: stay silent when the Paseo desktop app is frontmost (you're already watching). Set to empty to always alert. |
 | `IYF_SNOOZE_MINUTES` | `5 10 30 60` | Space-separated snooze options, in minutes, shown as buttons on the alert. Set to empty to hide the buttons. Requires `python3` (see [Snoozing the alert](#snoozing-the-alert)). |
 
 The default ignore list covers common interactive / long-lived foreground tools:
@@ -154,6 +158,68 @@ rules apply here too, so an alert only pops when you've actually walked away.
 
 > Requires `python3` (used to parse the hook payload). Subagent turns don't
 > fire it — only the main agent's `Stop`.
+
+## Paseo
+
+The same alert works for [Paseo](https://paseo.sh) agents: when a long-running
+agent **finishes a turn** — you kicked off something big and switched away — it
+yanks you back the moment it's done. It also fires when an agent is **blocked
+waiting on you** (a permission request), and when a turn **fails**.
+
+It reuses the same launcher (`iyf-show-alert.sh`), the same `alert.html`, and the
+same "stay silent while you're watching" logic as the other entry points. But
+unlike the Claude Code integration, it is **not** a hook. Paseo runs every agent
+(`opencode`, `claude`, `codex`, …) through its own daemon runtime rather than the
+provider CLIs, so `~/.claude/settings.json` hooks never fire for a Paseo-managed
+agent — not even a `claude/*` one — and Paseo exposes no "run a command on agent
+event" hook of its own.
+
+So instead, a small watcher (`iyf-paseo-watch.sh` → `iyf-paseo-watch.py`) polls
+the daemon through the supported CLI and synthesizes the missing event by diffing
+each agent's status between snapshots:
+
+- `paseo ls --json` — a `running → idle` transition is a finished turn;
+  `running → error` is a failed one.
+- `paseo permit ls --json` — a new entry is an agent waiting on a permission.
+
+One watcher covers every agent and every provider, and survives daemon restarts.
+
+Install it as a background **launchd LaunchAgent** so it runs across logins —
+install-once, like sourcing `iyf.sh`:
+
+```sh
+~/.iyf/iyf-paseo-watch.sh install     # write + load the LaunchAgent
+~/.iyf/iyf-paseo-watch.sh status      # check it's running / tail its log
+~/.iyf/iyf-paseo-watch.sh uninstall   # unload + remove it
+```
+
+Or run it in the foreground to try it out (Ctrl-C to stop), and fire a one-off
+sample alert to confirm the visuals:
+
+```sh
+~/.iyf/iyf-paseo-watch.sh run
+~/.iyf/iyf-paseo-watch.sh test        # pops one sample alert and exits
+```
+
+Tune it with `IYF_PASEO_THRESHOLD` (min finished-turn seconds, default `45`),
+`IYF_PASEO_POLL` (poll interval, default `3`), and `IYF_PASEO_EVENTS` (any subset
+of `finish error permission`). By default it stays silent while the Paseo desktop
+app is frontmost — you're already watching — which you can change or disable with
+`IYF_PASEO_SKIP_WHEN_ACTIVE`.
+
+Because the LaunchAgent doesn't inherit your interactive shell environment, set
+its knobs in an env file (default `~/.iyf/paseo-watch.env`, overridable with
+`IYF_PASEO_ENV`), which the watcher sources on startup:
+
+```sh
+# ~/.iyf/paseo-watch.env
+IYF_PASEO_THRESHOLD=60
+IYF_PASEO_EVENTS="finish permission"
+```
+
+> Requires `python3` (the poll loop) and the `paseo` CLI on `PATH` (or the Paseo
+> desktop app installed at its default location). The watcher finds both
+> automatically.
 
 ## Dismissing the alert
 
