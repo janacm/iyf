@@ -187,6 +187,7 @@ iyf_install() {
 </plist>
 PLIST
 
+  : > "$logfile" 2>/dev/null || true   # fresh log so `status` health stays accurate
   launchctl unload "$plist" >/dev/null 2>&1
   if launchctl load -w "$plist" 2>/dev/null; then
     echo "Installed and loaded: $plist"
@@ -207,16 +208,30 @@ iyf_uninstall() {
 }
 
 iyf_status() {
-  if launchctl list 2>/dev/null | grep -q "$label_prefix"; then
-    echo "LaunchAgent: loaded ($label_prefix)"
+  local pid loaded=0
+  launchctl list 2>/dev/null | grep -q "$label_prefix" && loaded=1
+  # The real health signal is a live poll loop, not just a registered job.
+  pid=$(launchctl print "gui/$(id -u)/${label_prefix}" 2>/dev/null \
+        | sed -n 's/^[[:space:]]*pid = \([0-9][0-9]*\).*/\1/p' | head -1)
+  [[ -z "$pid" ]] && pid=$(pgrep -f "$install_dir/iyf-paseo-watch.py" 2>/dev/null | head -1)
+
+  if [[ -n "$pid" ]]; then
+    echo "✅ Paseo watcher: running (pid $pid)"
+  elif (( loaded )); then
+    echo "⚠️  Paseo watcher: loaded but not running yet"
   else
-    echo "LaunchAgent: not loaded"
+    echo "❌ Paseo watcher: not loaded — run: $install_dir/iyf-paseo-watch.sh install"
   fi
-  [[ -f "$plist" ]] && echo "plist: $plist" || echo "plist: (none)"
-  echo "install dir: $install_dir"
-  if [[ -f "$logfile" ]]; then
-    echo "--- last 10 log lines ($logfile) ---"
-    tail -n 10 "$logfile" 2>/dev/null
+
+  [[ -f "$plist" ]] && echo "✅ plist: $plist" || echo "❌ plist: (none)"
+  echo "   install dir: $install_dir"
+
+  # The loop is silent unless something breaks, so any log output is a problem.
+  if [[ -s "$logfile" ]]; then
+    echo "⚠️  log has output — last 10 lines ($logfile):"
+    tail -n 10 "$logfile" 2>/dev/null | sed 's/^/   /'
+  else
+    echo "✅ log clean — no errors ($logfile)"
   fi
 }
 
