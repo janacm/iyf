@@ -1,10 +1,11 @@
 # AGENTS.md — iyf (In Your Face)
 
-A maximized-window alert that pops when a long terminal command / Codex turn /
-Paseo agent turn finishes. The alert is an HTML page (`alert.html`) opened by
-`iyf-show-alert.sh` as a Chrome/Brave/Edge `--app` window (Safari fallback).
-Entry points all call the shared launcher `iyf-show-alert.sh`:
-`iyf.sh` (zsh hook), `iyf-Codex-hook.sh` (Codex hook), and
+A maximized-window alert that pops when a long terminal command / Claude Code
+or Codex turn / Paseo agent turn finishes. The alert is an HTML page
+(`alert.html`) opened by `iyf-show-alert.sh` as a Chrome/Brave/Edge `--app`
+window (Safari fallback). Entry points all call the shared launcher
+`iyf-show-alert.sh`: `iyf.sh` (zsh hook), `iyf-claude-hook.sh` (shared Claude
+Code / Codex hook), and
 `iyf-paseo-watch.sh` → `iyf-paseo-watch.py` (a launchd watcher that polls the
 Paseo daemon — see [The Paseo watcher](#the-paseo-watcher-launchd-cant-run-from-tcc-protected-paths)).
 
@@ -31,10 +32,10 @@ instance). Use **PID-based** tools to inspect it (see below).
 
 ## The Paseo watcher: launchd can't run from TCC-protected paths
 
-Paseo runs every agent (`opencode`, `Codex`, `codex`, …) through **its own
-daemon runtime, not the provider CLIs**, so `~/.Codex/settings.json` hooks never
-fire for a Paseo-managed agent — not even a `Codex/*` one — and Paseo exposes no
-"run a command on agent event" hook. So instead of a hook, `iyf-paseo-watch.py`
+Paseo runs every agent (`opencode`, `claude`, `codex`, …) through **its own
+daemon runtime, not the provider CLIs**, so provider-level hooks never fire for a
+Paseo-managed agent — not even a `claude/*` or `codex/*` one — and Paseo exposes
+no "run a command on agent event" hook. So instead of a hook, `iyf-paseo-watch.py`
 **polls** the daemon via the supported CLI and synthesizes the event by diffing
 status between snapshots:
 

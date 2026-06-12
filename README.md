@@ -4,11 +4,12 @@ A maximized-window alert that pops up when a long-running terminal command
 finishes, so you can switch away from the terminal and get yanked back the moment
 your build / test / deploy is done.
 
-When a command runs longer than a threshold, `iyf` opens a maximized browser
-window showing the command, the git repo it ran in, how long it took, and its
-exit status (green for success, red for failure). Click anywhere or press `Esc`
-to dismiss; it also auto-closes after a configurable timeout. Not ready to deal
-with it yet? Hit a
+When a terminal command, Claude Code turn, Codex turn, or Paseo agent turn runs
+longer than a threshold, `iyf` opens a maximized browser window showing the
+command or prompt, the git repo it ran in, how long it took, and its exit status
+(green for success, red for failure). Click anywhere or press `Esc` to dismiss;
+it also auto-closes after a configurable timeout. Not ready to deal with it yet?
+Hit a
 **Snooze** button (5/10/30/60 min by default) and it'll pop the same alert back
 up later.
 
@@ -70,12 +71,14 @@ All settings are environment variables. Set them before `iyf.sh` is sourced
 | `IYF_ALERT_FILE` | `~/.iyf/alert.html` | Path to the alert HTML page. |
 | `IYF_BROWSER_PROFILE` | `~/.iyf-alert-profile` | Directory for the alert's dedicated, throwaway browser profile. The alert runs in its own browser instance (see [How it works](#how-it-works)) so it opens as a maximized window instead of native full-screen; this is where that instance's profile lives. |
 | `IYF_REPO` | _(auto: git repo name)_ | Repo name shown on the alert. Auto-detected as the basename of the command's git repository; set it to override the displayed name, or to empty (`IYF_REPO=""`) to hide the repo badge. A snooze re-launch reuses the value resolved on the first alert. |
-| `IYF_REPO_DIR` | _(where the command ran)_ | Directory whose git repo name is shown. Defaults to the launcher's working directory, which is almost always right; the [Claude Code integration](#claude-code) sets it to the turn's project directory automatically. Ignored when `IYF_REPO` is set. |
+| `IYF_REPO_DIR` | _(where the command ran)_ | Directory whose git repo name is shown. Defaults to the launcher's working directory, which is almost always right; the [Claude/Codex hook integration](#claude-code-and-codex) sets it to the turn's project directory automatically. Ignored when `IYF_REPO` is set. |
 | `IYF_FOCUS_APP` | `__CFBundleIdentifier` | Bundle id to activate when you click the alert. Set to empty to make click-anywhere only dismiss. The Paseo watcher defaults this to `sh.paseo.desktop`. |
 | `IYF_FOCUS_APP_NAME` | _(empty)_ | Optional display name shown in the click hint. The Paseo watcher defaults this to `Paseo`. |
 | `IYF_SKIP_OWN_TERMINAL` | `1` | When `1`, suppress the alert if the terminal that ran the command is the frontmost app when it finishes. Set to `0` to always alert. |
 | `IYF_SKIP_WHEN_ACTIVE` | _(empty)_ | Space-separated apps to also stay silent for when they're frontmost. Each entry matches a frontmost app's bundle id exactly, or its name as a substring. |
-| `IYF_CLAUDE_THRESHOLD` | `45` | Minimum Claude Code *turn* duration, in seconds, to trigger an alert. Only used by the [Claude Code integration](#claude-code). |
+| `IYF_CLAUDE_THRESHOLD` | `45` | Minimum Claude Code / Codex *turn* duration, in seconds, to trigger an alert. Only used by the [Claude/Codex hook integration](#claude-code-and-codex). |
+| `IYF_CLAUDE_STALE_MAX` | `21600` | Max age, in seconds, of a fallback start stamp when a Codex `Stop` payload does not match the original `UserPromptSubmit` session id. |
+| `IYF_DEBUG_LOG` | _(empty)_ | When set, log Claude/Codex hook payload summaries to `${TMPDIR}/iyf-claude-debug.log` (or `IYF_DEBUG_LOG_FILE`) for debugging. A `${TMPDIR}/iyf-claude-debug.on` sentinel enables the same logging when an agent strips hook env vars. |
 | `IYF_PASEO_THRESHOLD` | `45` | Minimum Paseo agent *turn* duration, in seconds, to trigger a finished-turn alert. Only used by the [Paseo integration](#paseo). |
 | `IYF_PASEO_POLL` | `3` | How often, in seconds, the Paseo watcher polls the daemon for agent status changes. Only used by the [Paseo integration](#paseo). |
 | `IYF_PASEO_EVENTS` | `finish error permission` | Which Paseo agent events fire an alert — any subset of `finish` (turn done), `error` (turn failed), `permission` (agent is blocked waiting on you). Only used by the [Paseo integration](#paseo). |
@@ -126,22 +129,22 @@ slow command:
 iyf make build      # shows the alert immediately for "make build"
 ```
 
-## Claude Code
+## Claude Code and Codex
 
-The same alert works for [Claude Code](https://claude.com/claude-code): when a
-long Claude *turn* finishes — you asked it to do something big and switched away
-— it yanks you back the moment it's done, showing your prompt and how long the
-turn took.
+The same alert works for direct agent hooks in
+[Claude Code](https://claude.com/claude-code) and Codex: when a long agent
+*turn* finishes — you asked it to do something big and switched away — it yanks
+you back the moment it's done, showing your prompt and how long the turn took.
 
 It reuses the same launcher (`iyf-show-alert.sh`), the same `alert.html`, and
 the same "stay silent while you're at the terminal" logic as the shell hook.
-No zsh sourcing required — it's driven by two Claude Code hooks pointing at
+No zsh sourcing required — it's driven by two agent hooks pointing at
 `iyf-claude-hook.sh`:
 
 - `UserPromptSubmit` records when the turn started (and your prompt text).
 - `Stop` measures how long the turn took and fires the alert if it ran longer
   than `IYF_CLAUDE_THRESHOLD` seconds (default `45`) and you're not already
-  looking at the terminal Claude is running in.
+  looking at the terminal the agent is running in.
 
 Add this to `~/.claude/settings.json` (merge into any existing `hooks`), pointing
 at wherever you cloned the repo:
@@ -159,6 +162,11 @@ at wherever you cloned the repo:
 }
 ```
 
+For Codex, wire the same script to the equivalent `UserPromptSubmit` and `Stop`
+hook events. The script accepts the same JSON payload shape; if Codex sends a
+`Stop` event with a different or missing `session_id`, it falls back to the most
+recent start stamp that is still younger than `IYF_CLAUDE_STALE_MAX`.
+
 Tune the trigger independently of the terminal threshold with
 `IYF_CLAUDE_THRESHOLD`. The own-terminal / `IYF_SKIP_WHEN_ACTIVE` silencing
 rules apply here too, so an alert only pops when you've actually walked away.
@@ -175,11 +183,11 @@ waiting on you** (a permission request), and when a turn **fails**.
 
 It reuses the same launcher (`iyf-show-alert.sh`), the same `alert.html`, and the
 same "stay silent while you're watching" logic as the other entry points. But
-unlike the Claude Code integration, it is **not** a hook. Paseo runs every agent
-(`opencode`, `claude`, `codex`, …) through its own daemon runtime rather than the
-provider CLIs, so `~/.claude/settings.json` hooks never fire for a Paseo-managed
-agent — not even a `claude/*` one — and Paseo exposes no "run a command on agent
-event" hook of its own.
+unlike the direct Claude/Codex hook integration, it is **not** a hook. Paseo runs
+every agent (`opencode`, `claude`, `codex`, …) through its own daemon runtime
+rather than the provider CLIs, so provider-level hook config never fires for a
+Paseo-managed agent — not even a `claude/*` or `codex/*` one — and Paseo exposes
+no "run a command on agent event" hook of its own.
 
 So instead, a small watcher (`iyf-paseo-watch.sh` → `iyf-paseo-watch.py`) polls
 the daemon through the supported CLI and synthesizes the missing event by diffing
