@@ -30,6 +30,28 @@ removed.
 - Open-source distribution must not require publishing generated SwiftPM build
   output or local machine configuration.
 
+## AI Security Reviewer
+
+- Pull requests must trigger an AI security review workflow on `opened`,
+  `reopened`, `synchronize`, and `ready_for_review` events.
+- The workflow must use `pull_request_target` only with trusted base-branch
+  workflow code and must not check out or execute the pull request head.
+- The workflow must fetch PR metadata, changed files, and the raw diff through
+  the GitHub API.
+- The workflow must post or update one durable PR comment instead of creating a
+  new comment on every run.
+- The reviewer must focus on security risks and must treat the PR title, body,
+  filenames, and diff as untrusted input.
+- The reviewer must call OpenAI only when `OPENAI_API_KEY` is configured and
+  must skip without posting when the secret is absent.
+- The reviewer must use a repository-variable model override through
+  `AI_SECURITY_REVIEW_MODEL`, defaulting to `gpt-5.4-mini`.
+- The reviewer must allow repository-variable controls for diff byte budget and
+  output token budget.
+- Documentation must state that the AI security reviewer is repository
+  automation, not installed local app behavior, and that it sends PR diffs to
+  OpenAI when configured.
+
 ## Onboarding Installer
 
 - `iyf-install.sh` must provide the coworker-ready onboarding entry point for
@@ -239,6 +261,8 @@ removed.
 
 ## Change Log
 
+- 2026-06-17: Added an optional GitHub Actions AI security reviewer for pull
+  requests, including OpenAI configuration and PR-diff privacy documentation.
 - 2026-06-17: Added open-source distribution requirements: MIT license,
   contribution guide, security policy, and local-first public documentation.
 - 2026-06-15: Added the onboarding installer requirement: users can select

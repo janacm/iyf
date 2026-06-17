@@ -23,6 +23,8 @@ IYF_AUTO_CLOSE=5 IYF_SNOOZE_MINUTES="" ./iyf-show-alert.sh "contribution test" "
 
 - Run `swift test` when touching Swift code.
 - Run `./iyf-install.sh --list` after installer or integration changes.
+- Expect the AI security reviewer to comment on PRs when repository secrets are
+  configured. Treat it as a second-pass reviewer, not as a merge gate.
 - Use `rg`, not `grep`, for repo search unless `rg` is unavailable.
 - Keep `README.md` current for user-facing behavior.
 - Update `REQUIREMENTS.md` whenever product behavior, integration contracts, or

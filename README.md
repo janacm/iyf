@@ -38,6 +38,19 @@ unrelated hook config, writes timestamped backups before JSON edits, and exposes
 Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Please report
 security issues privately; see [SECURITY.md](SECURITY.md).
 
+## AI Security Reviewer
+
+Pull requests run an optional AI security review through GitHub Actions. The
+workflow is triggered when a PR is opened, reopened, updated, or marked ready
+for review. It checks out the trusted base branch workflow code, fetches the PR
+diff through the GitHub API, sends that diff to the OpenAI Responses API, and
+posts or updates one PR comment with security-focused findings.
+
+To enable it, add an `OPENAI_API_KEY` repository secret. The default model is
+`gpt-5.4-mini`; override it with the `AI_SECURITY_REVIEW_MODEL` repository
+variable. The reviewer is repository automation, not part of the installed
+local app, and it sends PR diffs to OpenAI when the secret is configured.
+
 ## How it works
 
 `iyf.sh` registers zsh `preexec` / `precmd` hooks:
