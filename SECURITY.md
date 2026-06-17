@@ -20,8 +20,6 @@ GitHub profile and include:
 ## Security Expectations
 
 - The core app should stay local-first and avoid telemetry.
-- The AI security reviewer is repository automation, not installed app behavior;
-  when `OPENAI_API_KEY` is configured, it sends PR diffs to OpenAI for review.
 - Loopback helpers must bind only to `127.0.0.1` and require an unguessable
   token for control requests.
 - Installers must preserve unrelated user config and write backups before
