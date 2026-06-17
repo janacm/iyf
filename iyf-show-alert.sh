@@ -37,6 +37,20 @@ focus_app_name=${IYF_FOCUS_APP_NAME:-}
 # Where this script lives, so the snooze daemon can be found and re-invoked.
 selfdir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+__iyf_url_encode() {
+  local value=${1:-}
+  printf '%s' "$value" \
+    | python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.stdin.read().strip()))" 2>/dev/null \
+    || printf '%s' "$value"
+}
+
+__iyf_b64url_encode() {
+  local value=${1:-}
+  printf '%s' "$value" \
+    | python3 -c "import base64,sys; data=sys.stdin.read().strip().encode(); print(base64.urlsafe_b64encode(data).decode().rstrip('='))" 2>/dev/null \
+    || true
+}
+
 __iyf_find_native_alert() {
   local p
   if [[ -n "${IYF_NATIVE_ALERT:-}" ]]; then
@@ -91,10 +105,10 @@ if [[ -z "$native_alert" ]]; then
 fi
 
 # URL-encode the label so query parsing in alert.html stays intact; degrade to
-# the raw string if python3 isn't around.
-encoded_cmd=$(printf '%s' "$cmd" \
-  | python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.stdin.read().strip()))" 2>/dev/null \
-  || printf '%s' "$cmd")
+# the raw string if python3 isn't around. Also pass URL-safe base64 for the
+# native WebKit path, which can re-escape percent-encoded file:// query values.
+encoded_cmd=$(__iyf_url_encode "$cmd")
+encoded_cmd_b64=$(__iyf_b64url_encode "$cmd")
 
 # Repo name shown on the alert so you can tell which project a finished command
 # / turn belongs to. Resolved ONCE here and exported: a snoozed relaunch runs
@@ -108,12 +122,10 @@ if [[ -z "${IYF_REPO+set}" ]]; then
   repo=$(git -C "${IYF_REPO_DIR:-$PWD}" rev-parse --show-toplevel 2>/dev/null)
   export IYF_REPO="${repo##*/}"
 fi
-encoded_repo=$(printf '%s' "$IYF_REPO" \
-  | python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.stdin.read().strip()))" 2>/dev/null \
-  || printf '%s' "$IYF_REPO")
-encoded_focus_app_name=$(printf '%s' "$focus_app_name" \
-  | python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.stdin.read().strip()))" 2>/dev/null \
-  || printf '%s' "$focus_app_name")
+encoded_repo=$(__iyf_url_encode "$IYF_REPO")
+encoded_repo_b64=$(__iyf_b64url_encode "$IYF_REPO")
+encoded_focus_app_name=$(__iyf_url_encode "$focus_app_name")
+encoded_focus_app_name_b64=$(__iyf_b64url_encode "$focus_app_name")
 
 # Snooze/focus: a sandboxed file:// page can't outlive its window or activate
 # another app itself, so we spawn a tiny detached daemon that the page signals
@@ -147,13 +159,18 @@ if [[ -n "$sport" && -n "$stoken" ]]; then
   if [[ -n "${focus_app// /}" ]]; then
     daemon_q="${daemon_q}&focus=1"
     [[ -n "$encoded_focus_app_name" ]] && daemon_q="${daemon_q}&focusname=${encoded_focus_app_name}"
+    [[ -n "$encoded_focus_app_name_b64" ]] && daemon_q="${daemon_q}&focusnameb64=${encoded_focus_app_name_b64}"
   else
     daemon_q="${daemon_q}&focus=0"
   fi
 fi
 [[ -n "${IYF_SNOOZED:-}" ]] && daemon_q="${daemon_q}&snoozed=1"
 
-url="file://${alert_file}?cmd=${encoded_cmd}&duration=${duration}&code=${code}&autoclose=${auto_close}&repo=${encoded_repo}${daemon_q}"
+text_q=""
+[[ -n "$encoded_cmd_b64" ]] && text_q="${text_q}&cmdb64=${encoded_cmd_b64}"
+[[ -n "$encoded_repo_b64" ]] && text_q="${text_q}&repob64=${encoded_repo_b64}"
+
+url="file://${alert_file}?cmd=${encoded_cmd}${text_q}&duration=${duration}&code=${code}&autoclose=${auto_close}&repo=${encoded_repo}${daemon_q}"
 
 __iyf_kill_previous_native_alert
 __iyf_kill_legacy_browser_alert

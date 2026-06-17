@@ -255,7 +255,37 @@
 
 <script>
   const params = new URLSearchParams(location.search);
-  const cmd = params.get('cmd') || '—';
+
+  function decodeBase64Url(value) {
+    if (!value) return null;
+    try {
+      const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+      const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function textParam(encodedName, legacyName) {
+    const encoded = decodeBase64Url(params.get(encodedName));
+    if (encoded !== null) return encoded;
+
+    const value = params.get(legacyName);
+    if (value === null) return '';
+
+    // WKWebView loadFileURL can re-escape percent-encoded file:// query values.
+    // Decode one extra layer for older launcher URLs that do not include base64.
+    if (window.iyfNative && /%[0-9a-f]{2}/i.test(value)) {
+      try {
+        return decodeURIComponent(value);
+      } catch (e) {}
+    }
+    return value;
+  }
+
+  const cmd = textParam('cmdb64', 'cmd') || '—';
   const duration = params.get('duration') || '—';
   const code = params.get('code');
 
@@ -264,7 +294,7 @@
 
   // Repo name (git toplevel basename, resolved by the launcher). Absent/empty
   // when the command didn't run inside a git repo — leave the badge hidden then.
-  const repo = params.get('repo');
+  const repo = textParam('repob64', 'repo');
   if (repo) {
     document.getElementById('repoDisplay').textContent = repo;
     document.getElementById('repoBadge').classList.add('is-visible');
@@ -304,7 +334,7 @@
   const focusEnabled = params.get('focus') === '1' && daemonEnabled;
 
   if (focusEnabled) {
-    const focusName = params.get('focusname');
+    const focusName = textParam('focusnameb64', 'focusname');
     const hint = document.getElementById('dismissHint');
     hint.textContent = 'Click anywhere to return' + (focusName ? ' to ' + focusName : '') + ' or press ';
     const kbd = document.createElement('kbd');

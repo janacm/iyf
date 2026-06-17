@@ -81,6 +81,8 @@ removed.
 - The alert must show the command or prompt label, formatted duration, exit
   status, auto-close countdown, and git repository badge when a repository can
   be resolved.
+- Labels and badge text containing URL-reserved characters must display as
+  human-readable text, not transport encoding artifacts.
 - Repository display must be resolved once by the launcher and preserved across
   snoozed relaunches.
 - `IYF_REPO` must override repository display, including an explicit empty

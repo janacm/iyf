@@ -103,7 +103,7 @@ echo 'source ~/.iyf/iyf.sh' >> ~/.zshrc
 
 Requires **zsh** on **macOS**. SwiftPM is used only to build the native helper;
 without a built helper the alert launcher fails closed. `python3` is used to
-URL-encode the command and to power the [snooze](#snoozing-the-alert) buttons;
+encode alert text and to power the [snooze](#snoozing-the-alert) buttons;
 without it the alert still works, just minus snooze.
 
 ## Configuration
