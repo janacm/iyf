@@ -58,9 +58,10 @@ __iyf_find_native_alert() {
     return 1
   fi
 
-  for p in "$selfdir/iyf-alert" \
-           "$selfdir/.build/release/iyf-alert" \
-           "$selfdir/.build/debug/iyf-alert"; do
+  local repodir; repodir=$(cd "$selfdir/.." && pwd)
+  for p in "$repodir/iyf-alert" \
+           "$repodir/.build/release/iyf-alert" \
+           "$repodir/.build/debug/iyf-alert"; do
     [[ -x "$p" ]] && { printf '%s\n' "$p"; return 0; }
   done
   return 1

@@ -16,8 +16,8 @@
 #
 # Inherited environment:
 #   PASEO_BIN  resolved paseo CLI path (from the .sh)
-#   IYF_DIR    dir holding iyf-show-alert.sh (from the .sh)
 #   plus all the IYF_* knobs documented in iyf-paseo-watch.sh
+# (iyf-show-alert.sh is found as a sibling of this file, not via the env.)
 # =============================================================
 import hashlib
 import json
@@ -27,8 +27,12 @@ import sys
 import time
 
 PASEO = os.environ.get("PASEO_BIN") or "paseo"
-IYF_DIR = os.environ.get("IYF_DIR") or os.path.dirname(os.path.abspath(__file__))
-LAUNCHER = os.path.join(IYF_DIR, "iyf-show-alert.sh")
+# iyf-show-alert.sh is always a sibling of this file — both live in lib/ in a dev
+# checkout AND in the staged LaunchAgent layout (~/.local/share/iyf/lib). Resolve
+# it relative to __file__ rather than an inherited IYF_DIR so it can't drift if
+# the caller sets IYF_DIR to the wrong base.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+LAUNCHER = os.path.join(_HERE, "iyf-show-alert.sh")
 
 
 def _int(name, default):

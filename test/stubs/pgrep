@@ -1,0 +1,5 @@
+#!/bin/bash
+# Test double for `pgrep`. Returns nothing by default (no matching process);
+# set STUB_PGREP_PID to simulate a live process.
+[ -n "${STUB_PGREP_PID:-}" ] && echo "$STUB_PGREP_PID"
+exit 0

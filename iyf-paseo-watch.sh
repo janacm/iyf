@@ -113,7 +113,7 @@ __iyf_find_python() {
 
 # Fire the shared launcher. <label> <duration-string> <exit-code>
 __iyf_fire() {
-  "$dir/iyf-show-alert.sh" "$1" "$2" "${3:-0}" >/dev/null 2>&1 &
+  "$dir/lib/iyf-show-alert.sh" "$1" "$2" "${3:-0}" >/dev/null 2>&1 &
 }
 
 # -------------------------------------------------------------
@@ -129,8 +129,8 @@ iyf_run() {
     echo "iyf-paseo-watch: python3 is required (used to parse paseo --json)." >&2
     exit 1
   }
-  export PASEO_BIN="$paseo" IYF_DIR="$dir"
-  exec "$python" "$dir/iyf-paseo-watch.py"
+  export PASEO_BIN="$paseo"
+  exec "$python" "$dir/lib/iyf-paseo-watch.py"
 }
 
 # -------------------------------------------------------------
@@ -143,12 +143,22 @@ iyf_install() {
   # often a symlink to ~/Documents/GitHub/iyf). launchd would fail with
   # "Operation not permitted" (exit 126). Copying the handful of files it needs
   # into ~/.local/share/iyf sidesteps that for good.
-  mkdir -p "$install_dir" "$HOME/Library/LaunchAgents"
+  # Mirror the dev-checkout layout into the staging dir: the front door and
+  # alert.html at the top, the internal scripts under lib/. Keeping the two
+  # layouts identical means every "$dir/lib/..." reference resolves the same way
+  # whether we run from a checkout or from the staged LaunchAgent — no flat-vs-lib
+  # special-casing, which is exactly the kind of mismatch that used to silently
+  # break the staged watcher.
+  mkdir -p "$install_dir/lib" "$HOME/Library/LaunchAgents"
   local f
-  for f in iyf-paseo-watch.sh iyf-paseo-watch.py iyf-show-alert.sh \
-           iyf-snooze-daemon.py alert.html; do
+  for f in iyf-paseo-watch.sh alert.html; do
     if [[ -f "$dir/$f" ]] && ! [[ "$dir/$f" -ef "$install_dir/$f" ]]; then
       cp "$dir/$f" "$install_dir/$f"
+    fi
+  done
+  for f in iyf-paseo-watch.py iyf-show-alert.sh iyf-snooze-daemon.py; do
+    if [[ -f "$dir/lib/$f" ]] && ! [[ "$dir/lib/$f" -ef "$install_dir/lib/$f" ]]; then
+      cp "$dir/lib/$f" "$install_dir/lib/$f"
     fi
   done
 
@@ -174,10 +184,10 @@ iyf_install() {
     cp "$native_alert" "$install_dir/iyf-alert"
   fi
 
-  chmod +x "$install_dir/iyf-paseo-watch.sh" "$install_dir/iyf-paseo-watch.py" \
-           "$install_dir/iyf-show-alert.sh" "$install_dir/iyf-alert" 2>/dev/null
+  chmod +x "$install_dir/iyf-paseo-watch.sh" "$install_dir/lib/iyf-paseo-watch.py" \
+           "$install_dir/lib/iyf-show-alert.sh" "$install_dir/iyf-alert" 2>/dev/null
   local script="$install_dir/iyf-paseo-watch.sh"
-  if [[ ! -f "$install_dir/iyf-paseo-watch.py" || ! -f "$install_dir/iyf-show-alert.sh" ]]; then
+  if [[ ! -f "$install_dir/lib/iyf-paseo-watch.py" || ! -f "$install_dir/lib/iyf-show-alert.sh" ]]; then
     echo "iyf-paseo-watch: couldn't stage the runtime into $install_dir" >&2
     echo "  (run install from a full iyf checkout)" >&2
     return 1
@@ -242,7 +252,7 @@ iyf_status() {
   # The real health signal is a live poll loop, not just a registered job.
   pid=$(launchctl print "gui/$(id -u)/${label_prefix}" 2>/dev/null \
         | sed -n 's/^[[:space:]]*pid = \([0-9][0-9]*\).*/\1/p' | head -1)
-  [[ -z "$pid" ]] && pid=$(pgrep -f "$install_dir/iyf-paseo-watch.py" 2>/dev/null | head -1)
+  [[ -z "$pid" ]] && pid=$(pgrep -f "$install_dir/lib/iyf-paseo-watch.py" 2>/dev/null | head -1)
 
   if [[ -n "$pid" ]]; then
     echo "✅ Paseo watcher: running (pid $pid)"

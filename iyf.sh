@@ -99,7 +99,7 @@ __iyf_precmd() {
 __iyf_show_alert() {
   local cmd=$1 duration=$2 code=$3
   local formatted=$(__iyf_format_duration $duration)
-  "$_IYF_DIR/iyf-show-alert.sh" "$cmd" "$formatted" "$code"
+  "$_IYF_DIR/lib/iyf-show-alert.sh" "$cmd" "$formatted" "$code"
 }
 
 # Manual trigger for testing: iyf any command here

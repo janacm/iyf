@@ -1,0 +1,20 @@
+#!/bin/bash
+# Test double for macOS `lsappinfo`. The skip-when-active logic calls:
+#   lsappinfo front
+#   lsappinfo info -only bundleid <asn>   -> parsed as "key"="value"
+#   lsappinfo info -only name <asn>
+# Behaviour is driven by STUB_FRONT_BUNDLEID / STUB_FRONT_NAME so a test can
+# simulate "the frontmost app is the terminal you're watching".
+case "$1" in
+  front)
+    printf '"ASN:0x0-0x1234"\n'
+    ;;
+  info)
+    # $1=info $2=-only $3=<field> $4=<asn>
+    case "$3" in
+      bundleid) printf '"CFBundleIdentifier"="%s"\n' "${STUB_FRONT_BUNDLEID:-com.unknown.app}" ;;
+      name)     printf '"LSDisplayName"="%s"\n' "${STUB_FRONT_NAME:-Unknown}" ;;
+    esac
+    ;;
+esac
+exit 0

@@ -68,9 +68,16 @@ not). This asymmetry is the tell.
 it needs (`iyf-paseo-watch.sh`, `iyf-paseo-watch.py`, `iyf-show-alert.sh`,
 `iyf-snooze-daemon.py`, `alert.html`, and `iyf-alert`) into a non-TCC dir —
 `~/.local/share/iyf` (override `IYF_PASEO_INSTALL_DIR`) — and points the plist
-there. The installer builds `iyf-alert` with SwiftPM when needed and fails if it
-cannot stage the helper. Re-run `install` after editing any of those scripts or
-rebuilding the helper to re-stage. The env file lives alongside:
+there. **Staging mirrors the dev-checkout layout**: the front door
+(`iyf-paseo-watch.sh`), `alert.html`, and `iyf-alert` sit at the top, while the
+internal scripts (`iyf-paseo-watch.py`, `iyf-show-alert.sh`,
+`iyf-snooze-daemon.py`) go under `~/.local/share/iyf/lib/`. Keeping the two
+layouts identical is load-bearing: the watcher resolves `iyf-show-alert.sh` via
+`$dir/lib/…` / a sibling of the `.py`, so a flat stage would break every Paseo
+alert from the LaunchAgent while still working in a dev checkout (the classic
+masking failure). The installer builds `iyf-alert` with SwiftPM when needed and
+fails if it cannot stage the helper. Re-run `install` after editing any of those
+scripts or rebuilding the helper to re-stage. The env file lives at the top:
 `~/.local/share/iyf/paseo-watch.env`.
 
 **Debugging:**

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Test double for the native iyf-alert helper. Records the file:// URL it was
+# launched with (its first arg) so tests can assert on the query string. The
+# real helper opens a window; here we just write the URL and exit.
+[ -n "${IYF_PROBE_OUT:-}" ] && printf '%s\n' "${1:-}" > "$IYF_PROBE_OUT"
+exit 0

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Test double for `pkill` — a no-op so the launcher's legacy-browser cleanup can
+# never signal a real process during tests. Exit 1 mimics "no process matched".
+exit 1

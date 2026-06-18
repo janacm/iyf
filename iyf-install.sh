@@ -325,7 +325,7 @@ install_hook_json() {
   local label=$1 settings=$2 stop_async=$3
   local python
   python=$(find_python) || die "python3 is required for $label hook installation"
-  local hook="$dir/iyf-claude-hook.sh"
+  local hook="$dir/lib/iyf-claude-hook.sh"
   say "Installing $label integration -> $settings"
   if [[ "$dry_run" == 1 ]]; then
     say "dry-run: would merge UserPromptSubmit and Stop hooks for $hook"
@@ -397,10 +397,10 @@ run_test_alert() {
   [[ "$run_test" == 1 ]] || return 0
   say "Firing a sample alert"
   if [[ "$dry_run" == 1 ]]; then
-    say "dry-run: would run $dir/iyf-show-alert.sh \"iyf install test\" \"1s\" 0"
+    say "dry-run: would run $dir/lib/iyf-show-alert.sh \"iyf install test\" \"1s\" 0"
     return 0
   fi
-  IYF_AUTO_CLOSE="${IYF_AUTO_CLOSE:-20}" "$dir/iyf-show-alert.sh" "iyf install test" "1s" 0
+  IYF_AUTO_CLOSE="${IYF_AUTO_CLOSE:-20}" "$dir/lib/iyf-show-alert.sh" "iyf install test" "1s" 0
 }
 
 while [[ $# -gt 0 ]]; do
@@ -438,8 +438,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$(uname -s)" == "Darwin" ]] || die "iyf currently supports macOS only"
-[[ -x "$dir/iyf-show-alert.sh" ]] || die "missing executable $dir/iyf-show-alert.sh"
-[[ -x "$dir/iyf-claude-hook.sh" ]] || die "missing executable $dir/iyf-claude-hook.sh"
+[[ -x "$dir/lib/iyf-show-alert.sh" ]] || die "missing executable $dir/lib/iyf-show-alert.sh"
+[[ -x "$dir/lib/iyf-claude-hook.sh" ]] || die "missing executable $dir/lib/iyf-claude-hook.sh"
 
 if [[ -n "$explicit_agents" ]]; then
   parse_agent_list "$explicit_agents"

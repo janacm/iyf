@@ -199,7 +199,10 @@ removed.
   loading launchd.
 - The staged runtime must include `iyf-paseo-watch.sh`,
   `iyf-paseo-watch.py`, `iyf-show-alert.sh`, `iyf-snooze-daemon.py`, and
-  `alert.html`.
+  `alert.html`. Staging must mirror the dev-checkout layout — the front door
+  (`iyf-paseo-watch.sh`) and `alert.html` at the top, the internal scripts under
+  `lib/` — so every `lib/`-relative reference resolves identically whether run
+  from a checkout or from the staged LaunchAgent.
 - `iyf-paseo-watch.sh install` must stage a native helper executable. If
   `iyf-alert` is not already built, it may build it with SwiftPM when the source
   checkout contains `Package.swift`; if it cannot stage the helper, install must

@@ -64,6 +64,26 @@ launcher exits with an error instead of opening Chrome, Brave, Edge, or Safari.
 
 ## Install
 
+### Homebrew
+
+```sh
+brew tap janacm/iyf https://github.com/janacm/iyf
+brew install iyf
+iyf-setup
+```
+
+`brew install` builds the native renderer and drops everything into the
+Homebrew prefix; it never touches your dotfiles. `iyf-setup` then runs the same
+interactive integration selector described below (and accepts the same
+`--agents` / `--list` / `--dry-run` flags). Re-run `iyf-setup` any time to change
+which integrations are active; `brew upgrade iyf` updates the renderer and
+scripts in place.
+
+> The explicit repo URL is required on `brew tap` because this repo isn't named
+> `homebrew-iyf`; the formula lives in [`Formula/iyf.rb`](Formula/iyf.rb).
+
+### From source
+
 Clone the repo and run the installer:
 
 ```sh

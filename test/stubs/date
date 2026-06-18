@@ -1,0 +1,9 @@
+#!/bin/bash
+# Test double for `date`. When STUB_NOW is set, `date +%s` returns it verbatim so
+# elapsed-time math in the hooks is fully deterministic (no wall-clock jitter at
+# threshold boundaries). Every other invocation delegates to the real date.
+if [ -n "${STUB_NOW:-}" ] && [ "$1" = "+%s" ]; then
+  printf '%s\n' "$STUB_NOW"
+  exit 0
+fi
+exec /bin/date "$@"
